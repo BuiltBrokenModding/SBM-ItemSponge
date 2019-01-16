@@ -1,0 +1,10 @@
+// Item Sponge US English Localizations
+
+tile.itemsponge:item_sponge.name=Item Sponge
+tile.itemsponge:nameplate.empty=<Empty>
+tile.itemsponge:nameplate.count=Count
+item.itemsponge:tooltip.absorbing=Absorbing
+item.itemsponge:tooltip.full=Full
+item.itemsponge:tooltip.howtocraft=Craft with an item to set that item as the absorbable item
+item.itemPsonge:tooltip.howtouncraft1=Put in crafting grid by itself to uncraft
+item.itemPsonge:tooltip.howtouncraft2=(You will not lose contained items)
