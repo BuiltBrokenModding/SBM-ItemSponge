@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "aba",
+    "bcb",
+    "aba"
+  ],
+  "key": {
+    "a": {
+      "item": "minecraft:wool",
+	  "data": 4
+    },
+	"b": {
+      "item": "minecraft:wool",
+	  "data": 5
+    },
+    "c":{
+      "item": "minecraft:hopper"
+	}
+  },
+  "result": {
+    "item": "itemsponge:item_sponge",
+	"data": 0,
+	"count": 2
+  }
+}

@@ -1,0 +1,25 @@
+{
+	"forge_marker": 1,
+	"defaults": {
+		"model": "cube_all",
+		"textures": {
+			"all": "itemsponge:blocks/item_sponge"
+		}
+	},
+	"variants": {
+		"contains_item": {
+			"true": {
+				"textures": {
+					"all": "itemsponge:blocks/item_sponge_occupied"
+				}
+			},
+			"false": {
+				"textures": {
+					"all": "itemsponge:blocks/item_sponge"
+				}
+			}
+		},
+		"normal": [{}],
+		"inventory": [{}]
+	}
+}

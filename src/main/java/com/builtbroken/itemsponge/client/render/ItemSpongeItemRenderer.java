@@ -1,8 +1,8 @@
 package com.builtbroken.itemsponge.client.render;
 
+import com.builtbroken.itemsponge.ItemSpongeMod;
 import com.builtbroken.itemsponge.client.render.StackRenderUtil.RenderModel;
-import com.builtbroken.itemsponge.init.ModItems;
-import com.builtbroken.itemsponge.utils.ItemSpongeUtils;
+import com.builtbroken.itemsponge.sponge.ItemSpongeUtils;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.block.model.ItemCameraTransforms.TransformType;
@@ -22,7 +22,7 @@ public class ItemSpongeItemRenderer extends TileEntityItemStackRenderer
     @Override
     public void renderByItem(ItemStack stack, float partialTicks)
     {
-        if (stack == null || stack.isEmpty() || stack.getItem() != ModItems.ITEM_SPONGE_ITEMBLOCK || model0 == null || model1 == null)
+        if (stack == null || stack.isEmpty() || stack.getItem() != ItemSpongeMod.item || model0 == null || model1 == null)
         {
             return;
         }

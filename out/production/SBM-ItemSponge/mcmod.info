@@ -1,0 +1,10 @@
+[{
+    "modid": "itemsponge",
+    "name": "ItemSponge",
+    "description": "An all-in-one item magnet, entity magnet, and block magnet",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+	"url": "",
+    "authorList": ["TheRealp455w0rd"],
+    "logoFile": ""
+}]

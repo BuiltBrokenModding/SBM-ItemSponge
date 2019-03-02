@@ -1,7 +1,7 @@
 package com.builtbroken.itemsponge.client.render;
 
-import com.builtbroken.itemsponge.init.ModConfig.Options;
-import com.builtbroken.itemsponge.sponge.TileEntityItemSponge;
+import com.builtbroken.itemsponge.ModConfig.Options;
+import com.builtbroken.itemsponge.sponge.block.TileEntityItemSponge;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.EntityRenderer;
@@ -37,7 +37,7 @@ public class ItemSpongeTileRenderer extends TileEntitySpecialRenderer<TileEntity
             EntityPlayerSP entity = Minecraft.getMinecraft().player;
             Vec3d start = entity.getPositionEyes(partialTicks);
             Vec3d vec31 = entity.getLook(partialTicks);
-            Vec3d end = start.addVector(vec31.x * dist, vec31.y * dist, vec31.z * dist);
+            Vec3d end = start.add(vec31.x * dist, vec31.y * dist, vec31.z * dist);
             RayTraceResult ray = te.getWorld().rayTraceBlocks(start, end, false, true, false);
             if (ray != null && ray.typeOfHit == RayTraceResult.Type.BLOCK && ray.getBlockPos().equals(te.getPos()))
             {
