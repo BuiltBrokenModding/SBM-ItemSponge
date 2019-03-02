@@ -15,3 +15,11 @@ build
 hs_err_pid*
 
 maven.bat
+
+SBM-ItemSponge\.txt
+
+SBM-ItemSponge\.iws
+
+SBM-ItemSponge\.ipr
+
+SBM-ItemSponge\.iml
