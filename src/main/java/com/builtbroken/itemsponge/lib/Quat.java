@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Formatter;
 import java.util.Locale;
 
+@Deprecated
 public final class Quat
 {
 

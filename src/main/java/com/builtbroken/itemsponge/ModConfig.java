@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * @author p455w0rd
  */
-public class ModConfig extends Configuration
+public class ModConfig extends Configuration //TODO convert to annotation system
 {
 
     private static final ModConfig INSTANCE = new ModConfig(new File(ItemSpongeMod.CONFIG_FILE));

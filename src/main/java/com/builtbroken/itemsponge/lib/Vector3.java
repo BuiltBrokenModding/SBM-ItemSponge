@@ -19,6 +19,7 @@ import java.util.Objects;
 /**
  * @author ChickenBones
  */
+@Deprecated
 public class Vector3
 {
     public static final Vector3 ZERO = new Vector3(0, 0, 0);

@@ -16,7 +16,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 /**
  * @author p455w0rd
  */
-public class PacketTileSync implements IMessage
+public class PacketTileSync implements IMessage //TODO we might be able to use NBT packet
 {
 
     public BlockPos pos;

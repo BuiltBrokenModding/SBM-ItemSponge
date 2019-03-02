@@ -16,7 +16,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 /**
  * @author p455w0rd
  */
-public class PacketStackSync implements IMessage
+public class PacketStackSync implements IMessage //TODO check if we need to sync
 {
 
     public NBTTagCompound inv;
