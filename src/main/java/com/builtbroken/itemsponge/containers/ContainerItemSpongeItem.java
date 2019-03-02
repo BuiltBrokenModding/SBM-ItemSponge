@@ -5,13 +5,14 @@ import net.minecraft.inventory.Container;
 
 /**
  * @author p455w0rd
- *
  */
-public class ContainerItemSpongeItem extends Container {
+public class ContainerItemSpongeItem extends Container
+{
 
-	@Override
-	public boolean canInteractWith(EntityPlayer playerIn) {
-		return true;
-	}
+    @Override
+    public boolean canInteractWith(EntityPlayer playerIn)
+    {
+        return true;
+    }
 
 }
