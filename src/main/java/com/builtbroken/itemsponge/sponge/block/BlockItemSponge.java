@@ -37,15 +37,13 @@ import java.util.Random;
  */
 public class BlockItemSponge extends Block implements ITileEntityProvider
 {
-
-    static final ResourceLocation ITEM_SPONGE_REGISTRYNAME = new ResourceLocation(ItemSpongeMod.MODID, "item_sponge");
     static final PropertyBool HASITEM = PropertyBool.create("contains_item");
 
     public BlockItemSponge()
     {
         super(Material.SPONGE);
-        setRegistryName(ITEM_SPONGE_REGISTRYNAME);
-        setTranslationKey(ITEM_SPONGE_REGISTRYNAME.toString());
+        setRegistryName(new ResourceLocation(ItemSpongeMod.MODID, "item_sponge"));
+        setTranslationKey(getRegistryName().toString());
         setHardness(0.6F);
         setSoundType(SoundType.PLANT);
         setDefaultState(blockState.getBaseState().withProperty(HASITEM, false));
@@ -57,10 +55,10 @@ public class BlockItemSponge extends Block implements ITileEntityProvider
     {
         if (!world.isRemote && hand == EnumHand.MAIN_HAND)
         {
-            TileEntity te = world.getTileEntity(pos);
-            if (te != null && te instanceof TileEntityItemSponge)
+            final TileEntity tileEntity = world.getTileEntity(pos);
+            if (tileEntity instanceof TileEntityItemSponge)
             {
-                TileEntityItemSponge tile = (TileEntityItemSponge) te;
+                TileEntityItemSponge tile = (TileEntityItemSponge) tileEntity;
                 if (tile.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null))
                 {
                     ItemSpongeItemHandler itemHandler = (ItemSpongeItemHandler) tile.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
@@ -127,9 +125,9 @@ public class BlockItemSponge extends Block implements ITileEntityProvider
     {
         if (!player.isCreative())
         {
-            TileEntity te = world.getTileEntity(pos);
+            TileEntity tileEntity = world.getTileEntity(pos);
             ItemStack drop = new ItemStack(ItemSpongeMod.item);
-            if (te != null && te instanceof TileEntityItemSponge)
+            if (tileEntity instanceof TileEntityItemSponge)
             {
                 TileEntityItemSponge tile = (TileEntityItemSponge) world.getTileEntity(pos);
                 if (tile != null && tile.hasAbsorbedStack())

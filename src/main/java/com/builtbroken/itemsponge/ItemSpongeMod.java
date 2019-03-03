@@ -26,6 +26,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.items.CapabilityItemHandler;
 
 @Mod(modid = ItemSpongeMod.MODID, name = ItemSpongeMod.NAME, version = ItemSpongeMod.VERSION)
+@Mod.EventBusSubscriber()
 public class ItemSpongeMod
 {
     public static final String MODID = "itemsponge";
