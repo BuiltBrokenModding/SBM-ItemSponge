@@ -1,11 +1,12 @@
 package com.builtbroken.itemsponge.sponge;
 
+import com.builtbroken.itemsponge.ConfigMain;
 import com.builtbroken.itemsponge.ItemSpongeMod;
-import com.builtbroken.itemsponge.ModConfig.Options;
 import com.builtbroken.itemsponge.NbtConsts;
 import com.builtbroken.itemsponge.lib.Vector3;
 import com.builtbroken.itemsponge.sponge.block.TileEntityItemSponge;
 import com.builtbroken.itemsponge.sponge.item.ItemBlockItemSponge;
+import com.builtbroken.itemsponge.sponge.item.SpongeInventory;
 import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityItem;
@@ -23,16 +24,14 @@ import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author p455w0rd
@@ -40,9 +39,16 @@ import java.util.Map;
 public class ItemSpongeUtils
 {
 
-    private static Map<NBTTagCompound, ItemStack> STACK_CACHE = new HashMap<NBTTagCompound, ItemStack>();
-    private static final HashMap<NBTTagCompound, ItemStack> EMPTY_MAP = new HashMap<NBTTagCompound, ItemStack>();
-    private static final List<EntityItem> EMPTY_ENTITY_LIST = new ArrayList<EntityItem>();
+    private static Map<NBTTagCompound, ItemStack> STACK_CACHE = new HashMap<NBTTagCompound, ItemStack>(); //TODO remove
+    private static final HashMap<NBTTagCompound, ItemStack> EMPTY_MAP = new HashMap<NBTTagCompound, ItemStack>(); //TODO remove
+    private static final List<EntityItem> EMPTY_ENTITY_LIST = new ArrayList<EntityItem>() //TODO remove
+    {
+        @Override
+        public boolean add(EntityItem item)
+        {
+            return false;
+        }
+    };
 
     /**
      * Gets a list of valid Item Sponges with items set and adds applicable items in a players inventory to those Item Sponges
@@ -59,7 +65,7 @@ public class ItemSpongeUtils
                     final ItemStack stackInSlot = inv.getStackInSlot(i);
                     if (isItemValid(sponge.getValue(), stackInSlot) && sponge.getValue().hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null))
                     {
-                        ItemSpongeItemHandler itemHandler = (ItemSpongeItemHandler) sponge.getValue().getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+                        SpongeInventory itemHandler = (SpongeInventory) sponge.getValue().getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
                         if (itemHandler != null && itemHandler.isItemValid(0, stackInSlot))
                         {
                             ItemStack leftOver = itemHandler.insertItem(0, stackInSlot.copy(), false);
@@ -82,12 +88,12 @@ public class ItemSpongeUtils
      */
     public static void absorbEntityItems(EntityItem sponge)
     {
-        if (getAbsorbedItemCount(sponge.getItem()) >= Options.maxItemsPerSponge)
+        if (getAbsorbedItemCount(sponge.getItem()) >= ConfigMain.maxItemsPerSponge)
         {
             return;
         }
         int numToAdd = 0;
-        for (EntityItem entity : getAbsorbableEntityItems(sponge))
+        for (EntityItem entity : getItemsForCollection(sponge))
         {
 
             if (entity.getDistanceSq(sponge) <= 1d)
@@ -109,9 +115,9 @@ public class ItemSpongeUtils
      */
     public static void absorbEntityItems(EntityPlayer player)
     {
-        for (EntityItem entity : getAbsorbableEntityItems(player))
+        for (EntityItem entity : getItemsForCollection(player))
         {
-            if (getDistance(Vector3.fromEntityCenter(entity), Vector3.fromEntity(player)) <= 2d)
+            if (entity.getDistanceSq(player) <= 2d) //TODO config for pickup radius
             {
                 entity.setNoPickupDelay();
             }
@@ -125,16 +131,14 @@ public class ItemSpongeUtils
     public static boolean absorbEntityItems(TileEntityItemSponge tile)
     {
         boolean shouldUpdate = false;
-        IItemHandler inventory = tile.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
-        if (!hasRedstoneSignal(tile) && inventory.getStackInSlot(0).getCount() < Options.maxItemsPerSponge)
+        SpongeInventory spongeInventory = getCap(tile);
+        if (!hasRedstoneSignal(tile) && spongeInventory != null && !spongeInventory.isFull())
         {
-            Vector3 tilePos = Vector3.fromTileEntityCenter(tile);
-            for (EntityItem entity : getAbsorbableEntityItems(tile))
+            for (EntityItem entity : getItemsForCollection(tile))
             {
-                Vector3 itemPos = Vector3.fromEntityCenter(entity);
-                if (getDistance(itemPos, tilePos) <= 1d)
+                if (entity.getDistanceSq(tile.getPos()) <= 1d)
                 {
-                    ItemStack leftOverStack = inventory.insertItem(0, entity.getItem(), false);
+                    ItemStack leftOverStack = spongeInventory.insertItem(entity.getItem(), false);
                     if (leftOverStack.isEmpty())
                     {
                         entity.setDead();
@@ -157,7 +161,7 @@ public class ItemSpongeUtils
             }
             if (shouldUpdate)
             {
-                tile.getWorld().playSound(null, tilePos.toBlockPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.1F, 0.5F * ((tile.getWorld().rand.nextFloat() - tile.getWorld().rand.nextFloat()) * 0.7F + 2F));
+                tile.getWorld().playSound(null, tile.getPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.1F, 0.5F * ((tile.getWorld().rand.nextFloat() - tile.getWorld().rand.nextFloat()) * 0.7F + 2F));
             }
         }
         return shouldUpdate;
@@ -166,11 +170,11 @@ public class ItemSpongeUtils
     /**
      * Get available and valid EntityItems near an Item Sponge TileEntity
      */
-    private static List<EntityItem> getAbsorbableEntityItems(TileEntityItemSponge tile)
+    private static List<EntityItem> getItemsForCollection(TileEntityItemSponge tile)
     {
         if (tile.hasAbsorbedStack() && tile.getWorld() != null)
         {
-            return getAbsorbableEntityItems(tile.getWorld(), Vector3.fromTileEntity(tile).toBlockPos(), tile.getAbsorbedStack());
+            return getItemsForCollection(tile.getWorld(), tile.getPos(), tile.getAbsorbedStack());
         }
         return EMPTY_ENTITY_LIST;
     }
@@ -178,22 +182,23 @@ public class ItemSpongeUtils
     /**
      * Get available and valid EntityItems near a player who has an Item Sponge ItemStack in their inventory
      */
-    private static List<EntityItem> getAbsorbableEntityItems(EntityPlayer player)
+    private static LinkedList<EntityItem> getItemsForCollection(EntityPlayer player)
     {
-        List<EntityItem> entityItemList = new ArrayList<>();
-        for (Map.Entry<Integer, ItemStack> sponge : ItemSpongeUtils.getSponges(player, false).entrySet())
+        final LinkedList<EntityItem> entityItemList = new LinkedList();
+
+        //Slot -> sponge stack
+        for (Map.Entry<Integer, ItemStack> spongeSlotCombo : ItemSpongeUtils.getSponges(player, false).entrySet())
         {
-            if (sponge.getValue().hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null))
+            final ItemStack spongeStack = spongeSlotCombo.getValue();
+            final SpongeInventory spongeInventory = getCap(spongeStack);
+            if (spongeInventory != null && !spongeInventory.isFull())
             {
-                if (sponge.getValue().getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null).getStackInSlot(0).getCount() < Options.maxItemsPerSponge)
+                ItemStack absorbedStack = getAbsorbedItem(spongeSlotCombo.getValue());
+                for (EntityItem entity : getItemsForCollection(player.getEntityWorld(), player.getPosition(), absorbedStack))
                 {
-                    ItemStack absorbedStack = getAbsorbedItem(sponge.getValue());
-                    for (EntityItem entity : getAbsorbableEntityItems(player.getEntityWorld(), player.getPosition(), absorbedStack))
+                    if (isItemValid(spongeSlotCombo.getValue(), entity.getItem()))
                     {
-                        if (isItemValid(sponge.getValue(), entity.getItem()))
-                        {
-                            entityItemList.add(entity);
-                        }
+                        entityItemList.add(entity);
                     }
                 }
             }
@@ -204,11 +209,11 @@ public class ItemSpongeUtils
     /**
      * Get available and valid EntityItems near an EntityItem version (dropped in world) of an ItemSponge ItemStack
      */
-    private static List<EntityItem> getAbsorbableEntityItems(EntityItem itemSponge)
+    private static List<EntityItem> getItemsForCollection(EntityItem itemSponge)
     {
         if (itemSponge.isEntityAlive() && itemSponge.ticksExisted > 0)
         {
-            return getAbsorbableEntityItems(itemSponge.getEntityWorld(), itemSponge.getPosition(), getAbsorbedItem(itemSponge));
+            return getItemsForCollection(itemSponge.getEntityWorld(), itemSponge.getPosition(), getAbsorbedItem(itemSponge));
         }
         return EMPTY_ENTITY_LIST;
     }
@@ -216,10 +221,10 @@ public class ItemSpongeUtils
     /**
      * Generic method for getting absorbable items near a specified {@link BlockPos position}
      */
-    private static List<EntityItem> getAbsorbableEntityItems(World world, BlockPos vec, ItemStack comparableStack)
+    private static List<EntityItem> getItemsForCollection(World world, BlockPos vec, ItemStack comparableStack)
     {
         List<EntityItem> itemList = new ArrayList<EntityItem>();
-        int radius = Options.maxDistance;
+        int radius = ConfigMain.MAX_DISTANCE;
         for (EntityItem item : world.getEntitiesWithinAABB(EntityItem.class, new AxisAlignedBB(vec.getX() - radius, vec.getY() - radius, vec.getZ() - radius, vec.getX() + radius, vec.getY() + radius, vec.getZ() + radius)))
         {
 
@@ -249,8 +254,10 @@ public class ItemSpongeUtils
         if (sponge.getEntityWorld() != null)
         {
             ItemStack absorbedStack = sponge.getItem().copy();
-            int currentCount = getAbsorbedItemCount(sponge.getItem());
-            absorbedStack = new ItemStack(getSerializedSpongeStack(sponge.getItem(), getAbsorbedItem(sponge.getItem()), currentCount + numToAdd));
+            int currentCount = getAbsorbedItemCount(absorbedStack);
+
+            absorbedStack = new ItemStack(getSerializedSpongeStack(sponge.getItem(), getAbsorbedItem(absorbedStack), currentCount + numToAdd)); ///TODO WTF
+
             sponge.setItem(absorbedStack);
             sponge.getEntityWorld().updateEntityWithOptionalForce(sponge, true);
         }
@@ -261,8 +268,9 @@ public class ItemSpongeUtils
      */
     public static double getSpeed(int amountStored)
     {
-        double percent = ((double) Options.maxItemsPerSponge - (double) amountStored) / Options.maxItemsPerSponge;
-        return percent < 0.1d ? 0.1d : percent;
+        //double percent = ((double) ConfigMain.maxItemsPerSponge - (double) amountStored) / ConfigMain.maxItemsPerSponge;
+        //return percent < 0.1d ? 0.1d : percent;
+        return 1; //TODO implement
     }
 
     /**
@@ -281,14 +289,6 @@ public class ItemSpongeUtils
             }
         }
         return false;
-    }
-
-    /**
-     * Gets the distance between 2 positions
-     */
-    private static double getDistance(Vector3 fromPos, Vector3 toPos)
-    {
-        return Math.sqrt(Math.pow(fromPos.x - toPos.x, 2) + Math.pow(fromPos.y - toPos.y, 2) + Math.pow(fromPos.z - toPos.z, 2));
     }
 
     private static void moveItemTowardPos(TileEntity tile, EntityItem item, double speed)
@@ -391,9 +391,10 @@ public class ItemSpongeUtils
     /**
      * Gets the absorbed item set on the Item Sponge {@link ItemStack}
      */
-    public static ItemStack getAbsorbedItem(ItemStack sponge)
+    @Deprecated
+    public static ItemStack getAbsorbedItem(ItemStack sponge) //TODO move to capability
     {
-        if (!sponge.isEmpty() && sponge.getItem() == ItemSpongeMod.item && sponge.hasTagCompound() && sponge.getTagCompound().hasKey(NbtConsts.INVENTORY_KEY, Constants.NBT.TAG_COMPOUND))
+        if (sponge.getItem() == ItemSpongeMod.item && sponge.hasTagCompound() && sponge.getTagCompound().hasKey(NbtConsts.INVENTORY_KEY, Constants.NBT.TAG_COMPOUND))
         {
             return getCachedStack(sponge.getTagCompound().getCompoundTag(NbtConsts.INVENTORY_KEY).getTagList(NbtConsts.ITEMS_KEY, Constants.NBT.TAG_COMPOUND).getCompoundTagAt(0));
         }
@@ -499,19 +500,6 @@ public class ItemSpongeUtils
         return 0;
     }
 
-    /**
-     * Checks whether or not the supplied Item Sponge {@link ItemStack} has reached capacity
-     */
-    public static boolean isFull(ItemStack sponge)
-    {
-        return hasAbsorbedItem(sponge) && isFull(sponge.getTagCompound());
-    }
-
-    private static boolean isFull(NBTTagCompound nbt)
-    {
-        return getAbsorbedItemCount(nbt) == Options.maxItemsPerSponge;
-    }
-
     // We cache up to 128 values...RAM is precious
     public static ItemStack getCachedStack(NBTTagCompound tag)
     {
@@ -606,7 +594,7 @@ public class ItemSpongeUtils
     {
         ItemStack tmpStack = stack.copy();
         tmpStack.setCount(1);
-        for (ItemStack currentStack : Options.getItemBlackList())
+        for (ItemStack currentStack : ConfigMain.getItemBlackList())
         {
             if (tmpStack.isItemEqual(currentStack))
             {
@@ -616,38 +604,26 @@ public class ItemSpongeUtils
         return false;
     }
 
-    public static List<ItemStack> getAbsorbedItems(ItemStack sponge)
+    public static boolean isFull(ItemStack stack)
     {
-        List<ItemStack> stackList = new ArrayList<>();
-        if (hasAbsorbedItem(sponge))
+        SpongeInventory spongeInventory = getCap(stack);
+        if (spongeInventory != null)
         {
-            ItemStack absorbedStack = getAbsorbedItem(sponge).copy();
-            int totalAbsorbedItems = getAbsorbedItemCount(sponge);
-            int maxStackSize = absorbedStack.getMaxStackSize();
-            if (totalAbsorbedItems <= maxStackSize)
-            {
-                absorbedStack.setCount(totalAbsorbedItems);
-                stackList.add(absorbedStack);
-            }
-            else
-            {
-                int fullStacks = totalAbsorbedItems / maxStackSize;
-                int remainder = totalAbsorbedItems % maxStackSize;
-                for (int i = 0; i < fullStacks; i++)
-                {
-                    ItemStack fullStack = absorbedStack.copy();
-                    fullStack.setCount(maxStackSize);
-                    stackList.add(fullStack);
-                }
-                if (remainder > 0)
-                {
-                    ItemStack remainderStack = absorbedStack.copy();
-                    remainderStack.setCount(remainder);
-                    stackList.add(remainderStack);
-                }
-            }
+            return spongeInventory.isFull();
         }
-        return stackList;
+        return false;
     }
 
+    public static SpongeInventory getCap(ICapabilityProvider provider)
+    {
+        if (provider.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null))
+        {
+            IItemHandler handler = provider.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+            if (handler instanceof SpongeInventory)
+            {
+                return (SpongeInventory) handler;
+            }
+        }
+        return null;
+    }
 }

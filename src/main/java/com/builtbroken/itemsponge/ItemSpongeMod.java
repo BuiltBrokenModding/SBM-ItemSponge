@@ -25,14 +25,19 @@ import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.items.CapabilityItemHandler;
 
-@Mod(modid = ItemSpongeMod.MODID, name = ItemSpongeMod.NAME, version = ItemSpongeMod.VERSION)
+@Mod(modid = ItemSpongeMod.MODID, name = "[SBM] Item Sponge", version = ItemSpongeMod.VERSION)
 @Mod.EventBusSubscriber()
 public class ItemSpongeMod
 {
     public static final String MODID = "itemsponge";
 
-    public static final String NAME = "Item Sponge";
-    public static final String VERSION = "1.0.0";
+    public static final String MAJOR_VERSION = "@MAJOR@";
+    public static final String MINOR_VERSION = "@MINOR@";
+    public static final String REVISION_VERSION = "@REVIS@";
+    public static final String BUILD_VERSION = "@BUILD@";
+    public static final String MC_VERSION = "@MC@";
+    public static final String VERSION = MC_VERSION + "-" + MAJOR_VERSION + "." + MINOR_VERSION + "." + REVISION_VERSION + "." + BUILD_VERSION;
+
     public static final String CONFIG_FILE = "config/ItemSponge.cfg";
 
     @Instance(MODID)
@@ -46,30 +51,30 @@ public class ItemSpongeMod
     public static Block block;
     public static Item item;
 
-    @SubscribeEvent
-    public static void onItemRegistryReady(RegistryEvent.Register<Item> event)
+    @EventHandler
+    public void preInit(FMLPreInitializationEvent e)
     {
-        event.getRegistry().register(item = new ItemBlockItemSponge(block));
+        NETWORK.registerMessage(PacketTileSync.Handler.class, PacketTileSync.class, 0, Side.CLIENT);
+        NETWORK.registerMessage(PacketStackSync.Handler.class, PacketStackSync.class, 1, Side.CLIENT);
     }
 
     @SubscribeEvent
-    public static void onBlockRegistryReady(RegistryEvent.Register<Block> event)
+    public static void blockRegistry(RegistryEvent.Register<Block> event)
     {
         event.getRegistry().register(block = new BlockItemSponge());
         GameRegistry.registerTileEntity(TileEntityItemSponge.class, block.getRegistryName());
     }
 
     @SubscribeEvent
-    public static void onRecipeRegistryReady(RegistryEvent.Register<IRecipe> event)
+    public static void itemRegistry(RegistryEvent.Register<Item> event)
     {
-        event.getRegistry().register(RecipeItemSponge.getInstance());
+        event.getRegistry().register(item = new ItemBlockItemSponge(block));
     }
 
-    @EventHandler
-    public void preInit(FMLPreInitializationEvent e)
+    @SubscribeEvent
+    public static void recipeRegistry(RegistryEvent.Register<IRecipe> event)
     {
-        NETWORK.registerMessage(PacketTileSync.Handler.class, PacketTileSync.class, 0, Side.CLIENT);
-        NETWORK.registerMessage(PacketStackSync.Handler.class, PacketStackSync.class, 1, Side.CLIENT);
+        event.getRegistry().register(RecipeItemSponge.getInstance());
     }
 
     public static void sendTileSyncPacketToClient(TileEntityItemSponge tile)
@@ -88,5 +93,4 @@ public class ItemSpongeMod
             }
         }
     }
-
 }

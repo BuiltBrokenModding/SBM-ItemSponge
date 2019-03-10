@@ -2,7 +2,6 @@ package com.builtbroken.itemsponge.sponge.item;
 
 import com.builtbroken.itemsponge.ItemSpongeMod;
 import com.builtbroken.itemsponge.client.render.ItemLayerWrapper;
-import com.builtbroken.itemsponge.sponge.ItemSpongeItemHandler;
 import com.builtbroken.itemsponge.sponge.ItemSpongeUtils;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.block.Block;
@@ -37,10 +36,9 @@ import java.util.Map;
 /**
  * @author p455w0rd
  */
-@SuppressWarnings("deprecation")
 public class ItemBlockItemSponge extends ItemBlock
 {
-    private static final Map<ItemStack, ItemSpongeItemHandler> ITEMHANDLER_CACHE = new HashMap<>();
+    private static final Map<ItemStack, SpongeInventory> ITEMHANDLER_CACHE = new HashMap<>();
 
     @SideOnly(Side.CLIENT)
     ItemLayerWrapper wrappedModel0, wrappedModel1;
@@ -77,11 +75,11 @@ public class ItemBlockItemSponge extends ItemBlock
         };
     }
 
-    private ItemSpongeItemHandler getItemHandler(ItemStack sponge)
+    private SpongeInventory getItemHandler(ItemStack sponge)
     {
         if (!ITEMHANDLER_CACHE.containsKey(sponge))
         {
-            ItemSpongeItemHandler itemHandler = new ItemSpongeItemHandler();
+            SpongeInventory itemHandler = new SpongeInventory();
             itemHandler.deserializeNBT(ItemSpongeUtils.getSerializedItemHandlerFromSponge(sponge));
             ITEMHANDLER_CACHE.put(sponge, itemHandler);
         }

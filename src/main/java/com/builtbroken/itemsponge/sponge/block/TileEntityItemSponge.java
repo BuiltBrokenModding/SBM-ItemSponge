@@ -2,7 +2,7 @@ package com.builtbroken.itemsponge.sponge.block;
 
 import com.builtbroken.itemsponge.ItemSpongeMod;
 import com.builtbroken.itemsponge.NbtConsts;
-import com.builtbroken.itemsponge.sponge.ItemSpongeItemHandler;
+import com.builtbroken.itemsponge.sponge.item.SpongeInventory;
 import com.builtbroken.itemsponge.sponge.ItemSpongeUtils;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -23,11 +23,11 @@ import javax.annotation.Nullable;
  */
 public class TileEntityItemSponge extends TileEntity implements ITickable
 {
-    private ItemSpongeItemHandler itemHandler;
+    private SpongeInventory itemHandler;
 
     public TileEntityItemSponge()
     {
-        itemHandler = new ItemSpongeItemHandler()
+        itemHandler = new SpongeInventory()
         {
             @Override
             public ItemStack extractItem(int slot, int amount, boolean simulate)

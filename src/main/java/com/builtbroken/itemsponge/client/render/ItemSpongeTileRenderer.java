@@ -1,6 +1,6 @@
 package com.builtbroken.itemsponge.client.render;
 
-import com.builtbroken.itemsponge.ModConfig.Options;
+import com.builtbroken.itemsponge.ConfigMain;
 import com.builtbroken.itemsponge.sponge.block.TileEntityItemSponge;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
@@ -42,7 +42,7 @@ public class ItemSpongeTileRenderer extends TileEntitySpecialRenderer<TileEntity
             if (ray != null && ray.typeOfHit == RayTraceResult.Type.BLOCK && ray.getBlockPos().equals(te.getPos()))
             {
                 String info = teInventoryStack.isEmpty() ? I18n.translateToLocal("tile.itemsponge:nameplate.empty") : I18n.translateToLocal("tile.itemsponge:nameplate.count") + ": " + te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null).getStackInSlot(0).getCount();
-                if (te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null).getStackInSlot(0).getCount() == Options.maxItemsPerSponge)
+                if (te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null).getStackInSlot(0).getCount() == ConfigMain.maxItemsPerSponge)
                 {
                     info += TextFormatting.BOLD + "" + TextFormatting.RED + " (" + I18n.translateToLocal("item.itemsponge:tooltip.full") + ")";
                 }

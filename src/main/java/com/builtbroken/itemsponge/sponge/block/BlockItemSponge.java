@@ -1,7 +1,7 @@
 package com.builtbroken.itemsponge.sponge.block;
 
 import com.builtbroken.itemsponge.ItemSpongeMod;
-import com.builtbroken.itemsponge.sponge.ItemSpongeItemHandler;
+import com.builtbroken.itemsponge.sponge.item.SpongeInventory;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.SoundType;
@@ -21,7 +21,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.world.World;
@@ -42,7 +41,7 @@ public class BlockItemSponge extends Block implements ITileEntityProvider
     public BlockItemSponge()
     {
         super(Material.SPONGE);
-        setRegistryName(new ResourceLocation(ItemSpongeMod.MODID, "item_sponge"));
+        setRegistryName(ItemSpongeMod.MODID, "item_sponge");
         setTranslationKey(getRegistryName().toString());
         setHardness(0.6F);
         setSoundType(SoundType.PLANT);
@@ -61,7 +60,7 @@ public class BlockItemSponge extends Block implements ITileEntityProvider
                 TileEntityItemSponge tile = (TileEntityItemSponge) tileEntity;
                 if (tile.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null))
                 {
-                    ItemSpongeItemHandler itemHandler = (ItemSpongeItemHandler) tile.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+                    SpongeInventory itemHandler = (SpongeInventory) tile.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
                     ItemStack slotStack = itemHandler.getStackInSlot(0);
                     if (!slotStack.isEmpty())
                     {
@@ -129,8 +128,8 @@ public class BlockItemSponge extends Block implements ITileEntityProvider
             ItemStack drop = new ItemStack(ItemSpongeMod.item);
             if (tileEntity instanceof TileEntityItemSponge)
             {
-                TileEntityItemSponge tile = (TileEntityItemSponge) world.getTileEntity(pos);
-                if (tile != null && tile.hasAbsorbedStack())
+                final TileEntityItemSponge tile = (TileEntityItemSponge) tileEntity;
+                if (tile.hasAbsorbedStack())
                 {
                     NBTTagCompound nbt = tile.writeToNBT(new NBTTagCompound());
                     drop.setTagCompound(nbt);
@@ -145,12 +144,12 @@ public class BlockItemSponge extends Block implements ITileEntityProvider
     @Override
     public ItemStack getPickBlock(IBlockState state, RayTraceResult target, World world, BlockPos pos, EntityPlayer player)
     {
-        TileEntity te = world.getTileEntity(pos);
-        ItemStack stack = new ItemStack(ItemSpongeMod.item);
-        if (te != null && te instanceof TileEntityItemSponge)
+        final TileEntity tileEntity = world.getTileEntity(pos);
+        final ItemStack stack = new ItemStack(ItemSpongeMod.item);
+        if (tileEntity instanceof TileEntityItemSponge)
         {
-            TileEntityItemSponge tile = (TileEntityItemSponge) world.getTileEntity(pos);
-            if (tile != null && tile.hasAbsorbedStack())
+            final TileEntityItemSponge tile = (TileEntityItemSponge) tileEntity;
+            if (tile.hasAbsorbedStack())
             {
                 NBTTagCompound nbt = tile.writeToNBT(new NBTTagCompound());
                 stack.setTagCompound(nbt);

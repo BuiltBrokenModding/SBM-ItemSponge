@@ -1,7 +1,7 @@
 package com.builtbroken.itemsponge.sponge;
 
 import com.builtbroken.itemsponge.ItemSpongeMod;
-import com.builtbroken.itemsponge.ModConfig.Options;
+import com.builtbroken.itemsponge.ConfigMain;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
@@ -77,7 +77,7 @@ public class RecipeItemSponge extends IForgeRegistryEntry.Impl<IRecipe> implemen
                     }
                     else
                     {
-                        if (stack.getItem() != ItemSpongeMod.item && !Options.getItemBlackList().contains(stack.getItem()))
+                        if (stack.getItem() != ItemSpongeMod.item && !ConfigMain.getItemBlackList().contains(stack.getItem()))
                         {
                             absorbedItem = stack.copy();
                             if (absorbedItem.getCount() > 1)
