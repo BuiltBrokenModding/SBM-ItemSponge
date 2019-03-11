@@ -2,6 +2,7 @@ package com.builtbroken.itemsponge.sponge.item;
 
 import com.builtbroken.itemsponge.ConfigMain;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nonnull;
@@ -65,7 +66,7 @@ public class SpongeInventory extends ItemStackHandler
     @Override
     public void setStackInSlot(int slot, ItemStack stack)
     {
-        if (isItemValid(slot, stack))
+        if (stack.isEmpty() || isItemValid(slot, stack))
         {
             super.setStackInSlot(slot, stack);
         }
@@ -120,6 +121,17 @@ public class SpongeInventory extends ItemStackHandler
     @Override
     public boolean isItemValid(int slot, @Nonnull ItemStack stack)
     {
+        //Ignore all if no filter is set
+        if (filterStack == null || filterStack.isEmpty())
+        {
+            return false;
+        }
+        //Ignore if input is empty, is sponge, or has a sub inventory //TODO see if we should ignore most NBT
+        if (stack.isEmpty() || stack.getItem() instanceof ItemBlockItemSponge || stack.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null))
+        {
+            return false;
+        }
+        //Match to item, damage, and NBT
         return stack.isItemEqual(filterStack) && ItemStack.areItemStackTagsEqual(stack, filterStack);
     }
 }

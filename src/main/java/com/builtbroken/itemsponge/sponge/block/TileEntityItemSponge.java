@@ -23,11 +23,11 @@ import javax.annotation.Nullable;
  */
 public class TileEntityItemSponge extends TileEntity implements ITickable
 {
-    private SpongeInventory itemHandler;
+    private SpongeInventory inventory;
 
     public TileEntityItemSponge()
     {
-        itemHandler = new SpongeInventory()
+        inventory = new SpongeInventory()
         {
             @Override
             public ItemStack extractItem(int slot, int amount, boolean simulate)
@@ -54,6 +54,11 @@ public class TileEntityItemSponge extends TileEntity implements ITickable
         };
     }
 
+    public SpongeInventory getInventory()
+    {
+        return inventory;
+    }
+
     @Override
     public boolean hasCapability(Capability<?> capability, EnumFacing facing)
     {
@@ -65,7 +70,7 @@ public class TileEntityItemSponge extends TileEntity implements ITickable
     {
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY)
         {
-            return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(itemHandler);
+            return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(inventory);
         }
         return super.getCapability(capability, facing);
     }
@@ -74,13 +79,13 @@ public class TileEntityItemSponge extends TileEntity implements ITickable
     {
         ItemStack absorbedStack = stack.copy();
         absorbedStack.setCount(1);
-        itemHandler.setAbsorbedStack(absorbedStack);
+        inventory.setAbsorbedStack(absorbedStack);
     }
 
     // Gets just the absorbed ItemStack (the ItemStack that is set, not the inventory)
     public ItemStack getAbsorbedStack()
     {
-        return itemHandler.getAbsorbedStack();
+        return inventory.getAbsorbedStack();
     }
 
     // Gets the absorbed ItemStack from inventory (actual count)
@@ -143,7 +148,7 @@ public class TileEntityItemSponge extends TileEntity implements ITickable
         if (compound.hasKey(NbtConsts.INVENTORY_KEY, Constants.NBT.TAG_COMPOUND))
         {
             NBTTagCompound serializedInv = compound.getCompoundTag(NbtConsts.INVENTORY_KEY);
-            itemHandler.deserializeNBT(serializedInv);
+            inventory.deserializeNBT(serializedInv);
         }
     }
 
@@ -152,7 +157,7 @@ public class TileEntityItemSponge extends TileEntity implements ITickable
     {
         if (hasAbsorbedStack())
         {
-            compound.setTag(NbtConsts.INVENTORY_KEY, itemHandler.serializeNBT());
+            compound.setTag(NbtConsts.INVENTORY_KEY, inventory.serializeNBT());
         }
         return super.writeToNBT(compound);
     }

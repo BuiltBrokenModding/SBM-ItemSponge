@@ -1,9 +1,9 @@
 package com.builtbroken.itemsponge.sponge;
 
 import com.builtbroken.itemsponge.ItemSpongeMod;
+import com.builtbroken.itemsponge.sponge.item.SpongeInventory;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
@@ -26,14 +26,7 @@ public class EventHandler
     {
         if (event.player != null)
         {
-            if (!event.player.isSneaking())
-            {
-                ItemSpongeUtils.absorbEntityItems(event.player);
-            }
-            if (event.player instanceof EntityPlayerMP)
-            {
-                ItemSpongeUtils.absorbInventoryItems(event.player);
-            }
+            ItemSpongeUtils.handlePlayer(event.player);
         }
     }
 
@@ -55,6 +48,7 @@ public class EventHandler
     @SubscribeEvent
     public static void onItemCrafted(ItemCraftedEvent event)
     {
+        final World world = event.player.getEntityWorld();
         ItemStack result = event.crafting;
         if (!ItemSpongeUtils.hasAbsorbedItem(result))
         {
@@ -75,10 +69,14 @@ public class EventHandler
             }
             if (numCraftingItems == 1 && !spongeStack.isEmpty())
             {
-                for (ItemStack leftOverStack : ItemSpongeUtils.getAbsorbedItems(spongeStack))
+                final SpongeInventory spongeInventory = ItemSpongeUtils.getCap(spongeStack);
+                for (int slot = 0; slot < spongeInventory.getSlots(); slot++)
                 {
-                    World world = event.player.getEntityWorld();
-                    event.player.inventory.placeItemBackInInventory(world, leftOverStack);
+                    final ItemStack slotStack = spongeInventory.getStackInSlot(slot);
+                    if (!slotStack.isEmpty())
+                    {
+                        event.player.inventory.placeItemBackInInventory(world, slotStack);
+                    }
                 }
             }
         }

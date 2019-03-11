@@ -3,7 +3,6 @@ package com.builtbroken.itemsponge.sponge;
 import com.builtbroken.itemsponge.ConfigMain;
 import com.builtbroken.itemsponge.ItemSpongeMod;
 import com.builtbroken.itemsponge.NbtConsts;
-import com.builtbroken.itemsponge.lib.Vector3;
 import com.builtbroken.itemsponge.sponge.block.TileEntityItemSponge;
 import com.builtbroken.itemsponge.sponge.item.ItemBlockItemSponge;
 import com.builtbroken.itemsponge.sponge.item.SpongeInventory;
@@ -11,9 +10,8 @@ import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -23,6 +21,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.Constants;
@@ -50,37 +49,71 @@ public class ItemSpongeUtils
         }
     };
 
+
+    private static final List<SpongeInventory> temp_invs = new ArrayList(30);
+
     /**
      * Gets a list of valid Item Sponges with items set and adds applicable items in a players inventory to those Item Sponges
      */
-    public static void absorbInventoryItems(EntityPlayer player)
+    public static void handlePlayer(EntityPlayer player)
     {
-        if (player instanceof EntityPlayerMP)
-        {
-            final InventoryPlayer inv = player.inventory;
-            for (Map.Entry<Integer, ItemStack> sponge : getSponges(player, true).entrySet())
+        temp_invs.clear();
+
+        //Find all sponges
+        loop(player.inventory, (slot, stack) -> {
+            SpongeInventory inventory = getCap(stack);
+            if (inventory != null)
             {
-                for (int i = 0; i < inv.getSizeInventory(); i++) //TODO map entire inventory in 1 go
+                temp_invs.add(inventory);
+            }
+            return stack;
+        });
+
+        //Insert items, don't check if is valid as we do that in the inventory
+        loop(player.inventory, (slot, stack) -> {
+            for (SpongeInventory inventory : temp_invs)
+            {
+                stack = inventory.insertItem(stack, false);
+                if (stack.isEmpty())
                 {
-                    final ItemStack stackInSlot = inv.getStackInSlot(i);
-                    if (isItemValid(sponge.getValue(), stackInSlot) && sponge.getValue().hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null))
-                    {
-                        SpongeInventory itemHandler = (SpongeInventory) sponge.getValue().getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
-                        if (itemHandler != null && itemHandler.isItemValid(0, stackInSlot))
-                        {
-                            ItemStack leftOver = itemHandler.insertItem(0, stackInSlot.copy(), false);
-                            inv.setInventorySlotContents(i, leftOver);
-
-
-                            sponge.getValue().getTagCompound().setTag(NbtConsts.INVENTORY_KEY, itemHandler.serializeNBT()); //TODO WHY?
-
-
-                            ItemSpongeMod.sendStackSyncPacketToClient((EntityPlayerMP) player, sponge.getKey(), sponge.getValue().serializeNBT()); //TODO remove, let the player sync using share NBT
-                        }
-                    }
+                    return stack;
                 }
             }
+            return stack;
+        });
+
+        //Pickup items
+        List<EntityItem> nearbyItems = getItemsForCollection(player.world, player.posX, player.posY + (player.height / 2), player.posZ);
+        for(EntityItem entity : nearbyItems)
+        {
+            //Check if any of the sponges can take the item
+            if(temp_invs.stream().allMatch(inv -> inv.insertItem(entity.getItem(), true).getCount() != entity.getItem().getCount()))
+            {
+                if (entity.getDistanceSq(player) <= 2d) //TODO config for pickup radius
+                {
+                    entity.setNoPickupDelay();
+                }
+                moveItemTowardPos(player, entity, getSpeed(0)); //TODO pass in item count
+            }
         }
+
+
+        //Update player
+        player.inventoryContainer.detectAndSendChanges();
+    }
+
+    private static void loop(IInventory inventory, SlotConsumer consumer)
+    {
+        for (int slot = 0; slot < inventory.getSizeInventory(); slot++)
+        {
+            inventory.setInventorySlotContents(slot, consumer.apple(slot, inventory.getStackInSlot(slot)));
+        }
+    }
+
+    @FunctionalInterface
+    public static interface SlotConsumer
+    {
+        ItemStack apple(int slot, ItemStack contents);
     }
 
     /**
@@ -88,40 +121,37 @@ public class ItemSpongeUtils
      */
     public static void absorbEntityItems(EntityItem sponge)
     {
-        if (getAbsorbedItemCount(sponge.getItem()) >= ConfigMain.maxItemsPerSponge)
+        final ItemStack spongeStack = sponge.getItem();
+        final SpongeInventory inventory = getCap(spongeStack);
+        if (inventory != null && !inventory.isFull())
         {
-            return;
-        }
-        int numToAdd = 0;
-        for (EntityItem entity : getItemsForCollection(sponge))
-        {
-
-            if (entity.getDistanceSq(sponge) <= 1d)
+            //Loop all nearby entities
+            for (EntityItem entity : getItemsForCollection(sponge))
             {
-                numToAdd += entity.getItem().getCount();
-                entity.setDead();
-                continue;
-            }
-            moveItemTowardPos(Vector3.fromEntityCenter(sponge), entity, getSpeed(getAbsorbedItemCount(entity.getItem())));
-        }
-        if (numToAdd > 0)
-        {
-            addToEntityItem(sponge, numToAdd);
-        }
-    }
+                //IF close enough pick up
+                if (entity.getDistanceSq(sponge) <= 1d)
+                {
+                    //Insert into inventory
+                    ItemStack itemStack = entity.getItem();
+                    itemStack = inventory.insertItem(itemStack, false);
 
-    /**
-     * Performs the update task on a player (searches inventory for valid Item Sponges, then searches inventory for valid items to be added to those sponges)
-     */
-    public static void absorbEntityItems(EntityPlayer player)
-    {
-        for (EntityItem entity : getItemsForCollection(player))
-        {
-            if (entity.getDistanceSq(player) <= 2d) //TODO config for pickup radius
-            {
-                entity.setNoPickupDelay();
+                    //Empty consume
+                    if (itemStack.isEmpty())
+                    {
+                        entity.setDead();
+                    }
+                    //Update stack
+                    else
+                    {
+                        entity.setItem(itemStack);
+                    }
+                }
+                //If not close enough move
+                else
+                {
+                    moveItemTowardPos(sponge, entity, getSpeed(inventory.getItemCount()));
+                }
             }
-            moveItemTowardPos(Vector3.fromEntityCenter(player), entity, getSpeed(getAbsorbedItemCount(entity.getItem())));
         }
     }
 
@@ -131,7 +161,7 @@ public class ItemSpongeUtils
     public static boolean absorbEntityItems(TileEntityItemSponge tile)
     {
         boolean shouldUpdate = false;
-        SpongeInventory spongeInventory = getCap(tile);
+        final SpongeInventory spongeInventory = tile.getInventory();
         if (!hasRedstoneSignal(tile) && spongeInventory != null && !spongeInventory.isFull())
         {
             for (EntityItem entity : getItemsForCollection(tile))
@@ -151,12 +181,12 @@ public class ItemSpongeUtils
                     }
                     else
                     {
-                        moveItemTowardPos(tile, entity, getSpeed(getAbsorbedItemCount(tile)));
+                        moveItemTowardPos(tile, entity, getSpeed(spongeInventory.getItemCount()));
                     }
                 }
                 else
                 {
-                    moveItemTowardPos(tile, entity, getSpeed(getAbsorbedItemCount(tile)));
+                    moveItemTowardPos(tile, entity, getSpeed(spongeInventory.getItemCount()));
                 }
             }
             if (shouldUpdate)
@@ -180,42 +210,31 @@ public class ItemSpongeUtils
     }
 
     /**
-     * Get available and valid EntityItems near a player who has an Item Sponge ItemStack in their inventory
-     */
-    private static LinkedList<EntityItem> getItemsForCollection(EntityPlayer player)
-    {
-        final LinkedList<EntityItem> entityItemList = new LinkedList();
-
-        //Slot -> sponge stack
-        for (Map.Entry<Integer, ItemStack> spongeSlotCombo : ItemSpongeUtils.getSponges(player, false).entrySet())
-        {
-            final ItemStack spongeStack = spongeSlotCombo.getValue();
-            final SpongeInventory spongeInventory = getCap(spongeStack);
-            if (spongeInventory != null && !spongeInventory.isFull())
-            {
-                ItemStack absorbedStack = getAbsorbedItem(spongeSlotCombo.getValue());
-                for (EntityItem entity : getItemsForCollection(player.getEntityWorld(), player.getPosition(), absorbedStack))
-                {
-                    if (isItemValid(spongeSlotCombo.getValue(), entity.getItem()))
-                    {
-                        entityItemList.add(entity);
-                    }
-                }
-            }
-        }
-        return entityItemList;
-    }
-
-    /**
      * Get available and valid EntityItems near an EntityItem version (dropped in world) of an ItemSponge ItemStack
      */
     private static List<EntityItem> getItemsForCollection(EntityItem itemSponge)
     {
         if (itemSponge.isEntityAlive() && itemSponge.ticksExisted > 0)
         {
-            return getItemsForCollection(itemSponge.getEntityWorld(), itemSponge.getPosition(), getAbsorbedItem(itemSponge));
+            return getItemsForCollection(itemSponge.getEntityWorld(), itemSponge.getPosition(), getAbsorbedItem(itemSponge.getItem()));
         }
         return EMPTY_ENTITY_LIST;
+    }
+
+    private static List<EntityItem> getItemsForCollection(World world, double x, double y, double z)
+    {
+        List<EntityItem> itemList = new ArrayList<EntityItem>();
+        int radius = ConfigMain.MAX_DISTANCE;
+        for (EntityItem item : world.getEntitiesWithinAABB(EntityItem.class, new AxisAlignedBB(x - radius, y - radius, z - radius, x + radius, y + radius, z + radius)))
+        {
+            // Support Immersive Engineering/Demagnetize mod
+            final NBTTagCompound nbt = item.getEntityData();
+            if (!nbt.hasKey(NbtConsts.DEMAGNETIZE_KEY, Constants.NBT.TAG_BYTE) || !nbt.getBoolean(NbtConsts.DEMAGNETIZE_KEY))
+            {
+                itemList.add(item);
+            }
+        }
+        return itemList;
     }
 
     /**
@@ -244,23 +263,6 @@ public class ItemSpongeUtils
             }
         }
         return itemList;
-    }
-
-    /**
-     * Creates a new Item Sponge {@link ItemStack} with updated absorbed item stack count via a serialized ItemHandler and updates the EntityItem as necessary
-     */
-    private static void addToEntityItem(EntityItem sponge, int numToAdd)
-    {
-        if (sponge.getEntityWorld() != null)
-        {
-            ItemStack absorbedStack = sponge.getItem().copy();
-            int currentCount = getAbsorbedItemCount(absorbedStack);
-
-            absorbedStack = new ItemStack(getSerializedSpongeStack(sponge.getItem(), getAbsorbedItem(absorbedStack), currentCount + numToAdd)); ///TODO WTF
-
-            sponge.setItem(absorbedStack);
-            sponge.getEntityWorld().updateEntityWithOptionalForce(sponge, true);
-        }
     }
 
     /**
@@ -293,26 +295,45 @@ public class ItemSpongeUtils
 
     private static void moveItemTowardPos(TileEntity tile, EntityItem item, double speed)
     {
-        moveItemTowardPos(Vector3.fromTileEntityCenter(tile), item, speed);
+        moveItemTowardPos(tile.getPos().getX() + 0.5, tile.getPos().getY() + 0.5, tile.getPos().getZ() + 0.5, item, speed);
+    }
+
+    public static void moveItemTowardPos(Entity entity, Entity item, double speed)
+    {
+        final Vec3d entityCenter = entity.getEntityBoundingBox().getCenter();
+        moveItemTowardPos(entityCenter.x, entityCenter.y, entityCenter.z, item, speed);
     }
 
     /**
-     * Moves the {@link net.minecraft.entity.item.EntityItem EntityItem} toward the given {@link Vector3 Vector}<br>
-     * Used/Adapted from Botania
+     * Movies items towards the target position
+     *
+     * @param x
+     * @param y
+     * @param z
+     * @param item
+     * @param speed
      */
-    public static void moveItemTowardPos(Vector3 originalPosVector, EntityItem item, double speed)
+    public static void moveItemTowardPos(double x, double y, double z, Entity item, double speed)
     {
-        Vector3 entityVector = Vector3.fromEntityCenter(item);
-        Vector3 finalVector = originalPosVector.subtract(entityVector);
+        final Vec3d entityCenter = item.getEntityBoundingBox().getCenter();
 
-        if (finalVector.mag() > 1)
-        {
-            finalVector = finalVector.normalize();
-        }
+        //Getting difference
+        double deltaX = x - entityCenter.x;
+        double deltaY = y - entityCenter.y;
+        double deltaZ = z - entityCenter.z;
 
-        item.motionX = finalVector.x * speed;
-        item.motionY = finalVector.y * 0.45;
-        item.motionZ = finalVector.z * speed;
+        //Distance
+        double distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+
+        //Normalize
+        deltaX = deltaX / distance;
+        deltaY = deltaY / distance;
+        deltaZ = deltaZ / distance;
+
+        //Move
+        item.motionX = deltaX * speed;
+        item.motionY = deltaY * speed;
+        item.motionZ = deltaZ * speed;
     }
 
     /**
@@ -381,14 +402,6 @@ public class ItemSpongeUtils
     }
 
     /**
-     * Gets the absorbed item set on the Item Sponge {@link EntityItem}
-     */
-    public static ItemStack getAbsorbedItem(EntityItem spongeEntity)
-    {
-        return isSponge(spongeEntity) ? getAbsorbedItem(spongeEntity.getItem()) : ItemStack.EMPTY;
-    }
-
-    /**
      * Gets the absorbed item set on the Item Sponge {@link ItemStack}
      */
     @Deprecated
@@ -452,54 +465,6 @@ public class ItemSpongeUtils
         return isSponge(sponge) && !getAbsorbedItem(sponge).isEmpty();
     }
 
-    /**
-     * Checks whether or not the Item Sponge {@link EntityItem} has an {@code absorbedItem} set
-     */
-    public static boolean hasAbsorbedItem(EntityItem itemSpongeEntity)
-    {
-        return hasAbsorbedItem(itemSpongeEntity.getItem());
-    }
-
-    /**
-     * Gets the amount of the {@code absorbedItem} contained on the Item Sponge {@link ItemStack}
-     */
-    public static int getAbsorbedItemCount(ItemStack sponge)
-    {
-        if (hasAbsorbedItem(sponge))
-        {
-            return getAbsorbedItemCount(sponge.getTagCompound());
-        }
-        return 0;
-    }
-
-    /**
-     * Gets the amount of the {@code absorbedItem} contained on the Item Sponge {@link TileEntity}
-     */
-    private static int getAbsorbedItemCount(TileEntityItemSponge tile)
-    {
-        if (tile.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null))
-        {
-            return tile.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null).getStackInSlot(0).getCount();
-        }
-        return 0;
-    }
-
-    /**
-     * Gets the amount of the {@code absorbedItem} contained on the Item Sponge {@link NBTTagCompound NBT}
-     */
-    private static int getAbsorbedItemCount(NBTTagCompound nbt)
-    {
-        if (nbt.hasKey(NbtConsts.INVENTORY_KEY, Constants.NBT.TAG_COMPOUND))
-        {
-            NBTTagCompound invNBT = nbt.getCompoundTag(NbtConsts.INVENTORY_KEY);
-            if (invNBT.hasKey(NbtConsts.REALSTACKSIZE_KEY, Constants.NBT.TAG_INT))
-            {
-                return invNBT.getInteger(NbtConsts.REALSTACKSIZE_KEY);
-            }
-        }
-        return 0;
-    }
-
     // We cache up to 128 values...RAM is precious
     public static ItemStack getCachedStack(NBTTagCompound tag)
     {
@@ -533,58 +498,6 @@ public class ItemSpongeUtils
     public static boolean isSponge(Entity entity)
     {
         return entity instanceof EntityItem && isSponge(((EntityItem) entity).getItem());
-    }
-
-    /**
-     * Checks whether or not that supplied {@link ItemStack stack} is able to be absorbed by the supplied {@link ItemStack sponge}
-     */
-    public static boolean isItemValid(ItemStack sponge, ItemStack stack)
-    {
-        if (hasAbsorbedItem(sponge))
-        {
-            final ItemStack spongeItemHeld = getAbsorbedItem(sponge);
-            return ItemStack.areItemsEqual(spongeItemHeld, stack) && ItemStack.areItemStackTagsEqual(spongeItemHeld, stack);
-        }
-        return false;
-    }
-
-    /**
-     * Checks whether or not the supplied {@link ItemStack} matches the {@code absorbable item} set on the Item Sponge
-     */
-    public static boolean isItemValid(EntityItem sponge, ItemStack stack)
-    {
-        if (hasAbsorbedItem(sponge))
-        {
-            final ItemStack spongeItemHeld = getAbsorbedItem(sponge);
-            return ItemStack.areItemsEqual(spongeItemHeld, stack) && ItemStack.areItemStackTagsEqual(spongeItemHeld, stack);
-        }
-        return false;
-    }
-
-    public static boolean isItemValid(EntityItem sponge, EntityItem stack)
-    {
-        return isItemValid(sponge, stack.getItem());
-    }
-
-    /**
-     * Gets all sponge items currently in the player's inventory
-     *
-     * @param player              - player to use for an inventory
-     * @param absorbedItemSetOnly - only returns sponges that have an item set
-     */
-    private static Map<Integer, ItemStack> getSponges(EntityPlayer player, boolean absorbedItemSetOnly)
-    {
-        Map<Integer, ItemStack> spongeMap = new HashMap<>(); //TODO recycle maybe? also might want to turn into list? Could even return slots only?
-        InventoryPlayer inv = player.inventory;
-        for (int i = 0; i < inv.getSizeInventory(); i++)
-        {
-            ItemStack currentStack = inv.getStackInSlot(i);
-            if (isSponge(currentStack) && (!absorbedItemSetOnly || hasAbsorbedItem(currentStack)))
-            {
-                spongeMap.put(i, currentStack);
-            }
-        }
-        return spongeMap;
     }
 
     /**
